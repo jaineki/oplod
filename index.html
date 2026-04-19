@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confetti-Box Uploader</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f9f9f9;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f0f0ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #f3e8ff;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.2s;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .file-list {
+            margin-top: 30px;
+        }
+
+        .file-item {
+            background: #f5f5f5;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: #333;
+            word-break: break-all;
+            flex: 1;
+        }
+
+        .file-size {
+            color: #666;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .file-url {
+            font-size: 12px;
+            color: #667eea;
+            word-break: break-all;
+            margin-top: 8px;
+            cursor: pointer;
+        }
+
+        .file-url:hover {
+            text-decoration: underline;
+        }
+
+        .status {
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .status.success {
+            color: #4caf50;
+        }
+
+        .status.error {
+            color: #f44336;
+        }
+
+        .status.uploading {
+            color: #ff9800;
+        }
+
+        .copy-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 5px;
+            font-size: 11px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .copy-btn:hover {
+            background: #764ba2;
+        }
+
+        .clear-btn {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+
+        .clear-btn:hover {
+            background: #d32f2f;
+        }
+
+        .stats {
+            background: #f0f0ff;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .websocket-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4caf50;
+            animation: pulse 2s infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+            }
+        }
+
+        .websocket-status.disconnected {
+            background: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎉 Confetti-Box Uploader</h1>
+            <p>Your private file hosting solution</p>
+        </div>
+        <div class="content">
+            <div class="stats">
+                <div>
+                    <span id="wsStatus" class="websocket-status"></span>
+                    <span id="wsText">WebSocket Connected</span>
+                </div>
+                <div style="margin-top: 10px; font-size: 14px;">
+                    📁 Max file size: 2GB | 🎯 Chunked uploads supported
+                </div>
+            </div>
+
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📤</div>
+                <p>Drag & drop files here or click to select</p>
+                <p style="font-size: 12px; color: #666; margin-top: 10px;">
+                    Supports images, videos, MP3 audio, and more
+                </p>
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    Choose Files
+                </button>
+                <input type="file" id="fileInput" class="file-input" multiple>
+            </div>
+
+            <div class="file-list" id="fileList"></div>
+            
+            <button class="clear-btn" onclick="clearCompleted()">Clear Completed</button>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - Update this with your Railway URL
+        const API_BASE_URL = window.location.origin; // Uses current domain
+        const WS_URL = `ws://${window.location.host}/ws`; // WebSocket endpoint
+        
+        let ws = null;
+        let activeUploads = new Map();
+
+        // Initialize WebSocket connection
+        function initWebSocket() {
+            try {
+                ws = new WebSocket(WS_URL);
+                
+                ws.onopen = () => {
+                    console.log('WebSocket connected');
+                    document.getElementById('wsStatus').classList.remove('disconnected');
+                    document.getElementById('wsText').textContent = 'WebSocket Connected (Ready for chunked uploads)';
+                };
+                
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    document.getElementById('wsStatus').classList.add('disconnected');
+                    document.getElementById('wsText').textContent = 'WebSocket Error - Using HTTP fallback';
+                };
+                
+                ws.onclose = () => {
+                    console.log('WebSocket disconnected');
+                    document.getElementById('wsStatus').classList.add('disconnected');
+                    document.getElementById('wsText').textContent = 'WebSocket Disconnected - Using HTTP fallback';
+                    
+                    // Try to reconnect after 5 seconds
+                    setTimeout(initWebSocket, 5000);
+                };
+            } catch (e) {
+                console.error('WebSocket initialization failed:', e);
+                document.getElementById('wsStatus').classList.add('disconnected');
+                document.getElementById('wsText').textContent = 'WebSocket unavailable - Using HTTP';
+            }
+        }
+
+        // Upload file using standard HTTP (fallback)
+        async function uploadFileHTTP(file, fileId) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error('Upload failed');
+                
+                const result = await response.json();
+                updateFileStatus(fileId, 'success', result.url || result.file_url);
+                return result;
+            } catch (error) {
+                console.error('HTTP upload error:', error);
+                updateFileStatus(fileId, 'error', null, error.message);
+                throw error;
+            }
+        }
+
+        // Upload file using chunked upload (WebSocket)
+        async function uploadFileChunked(file, fileId) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                console.log('WebSocket not available, falling back to HTTP');
+                return uploadFileHTTP(file, fileId);
+            }
+            
+            const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
+            const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+            let uploadedChunks = 0;
+            
+            return new Promise((resolve, reject) => {
+                const uploadId = Date.now() + '_' + Math.random();
+                
+                // Handler for WebSocket messages
+                const messageHandler = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.uploadId === uploadId) {
+                            if (data.type === 'chunk_ack') {
+                                uploadedChunks++;
+                                const progress = (uploadedChunks / totalChunks) * 100;
+                                updateProgress(fileId, progress);
+                                
+                                if (uploadedChunks === totalChunks) {
+                                    // Upload complete
+                                    ws.removeEventListener('message', messageHandler);
+                                    updateFileStatus(fileId, 'success', data.url);
+                                    resolve(data);
+                                }
+                            } else if (data.type === 'error') {
+                                ws.removeEventListener('message', messageHandler);
+                                reject(new Error(data.message));
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error parsing WebSocket message:', e);
+                    }
+                };
+                
+                ws.addEventListener('message', messageHandler);
+                
+                // Start uploading chunks
+                let offset = 0;
+                let chunkIndex = 0;
+                
+                function sendNextChunk() {
+                    if (offset >= file.size) return;
+                    
+                    const end = Math.min(offset + CHUNK_SIZE, file.size);
+                    const chunk = file.slice(offset, end);
+                    
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const arrayBuffer = e.target.result;
+                        const uint8Array = new Uint8Array(arrayBuffer);
+                        
+                        const message = {
+                            type: 'chunk',
+                            uploadId: uploadId,
+                            fileName: file.name,
+                            fileSize: file.size,
+                            chunkIndex: chunkIndex,
+                            totalChunks: totalChunks,
+                            data: Array.from(uint8Array)
+                        };
+                        
+                        ws.send(JSON.stringify(message));
+                        
+                        offset = end;
+                        chunkIndex++;
+                        
+                        // Send next chunk after a small delay
+                        setTimeout(sendNextChunk, 10);
+                    };
+                    
+                    reader.onerror = () => {
+                        reject(new Error('Failed to read file chunk'));
+                    };
+                    
+                    reader.readAsArrayBuffer(chunk);
+                }
+                
+                sendNextChunk();
+            });
+        }
+
+        // Update file progress in UI
+        function updateProgress(fileId, progress) {
+            const fileItem = document.getElementById(fileId);
+            if (fileItem) {
+                const progressFill = fileItem.querySelector('.progress-fill');
+                if (progressFill) {
+                    progressFill.style.width = `${progress}%`;
+                }
+            }
+        }
+
+        // Update file status in UI
+        function updateFileStatus(fileId, status, url = null, errorMsg = null) {
+            const fileItem = document.getElementById(fileId);
+            if (!fileItem) return;
+            
+            const statusSpan = fileItem.querySelector('.status');
+            const progressBar = fileItem.querySelector('.progress-bar');
+            const urlDiv = fileItem.querySelector('.file-url');
+            
+            if (status === 'uploading') {
+                statusSpan.textContent = '⏳ Uploading...';
+                statusSpan.className = 'status uploading';
+            } else if (status === 'success') {
+                statusSpan.textContent = '✅ Upload complete!';
+                statusSpan.className = 'status success';
+                if (progressBar) progressBar.style.display = 'none';
+                if (url && urlDiv) {
+                    urlDiv.innerHTML = `🔗 URL: ${url} <button class="copy-btn" onclick="copyToClipboard('${url}')">Copy</button>`;
+                    urlDiv.style.display = 'block';
+                }
+            } else if (status === 'error') {
+                statusSpan.textContent = `❌ Error: ${errorMsg || 'Upload failed'}`;
+                statusSpan.className = 'status error';
+                if (progressBar) progressBar.style.display = 'none';
+            }
+        }
+
+        // Copy URL to clipboard
+        window.copyToClipboard = (text) => {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('URL copied to clipboard!');
+            }).catch(() => {
+                prompt('Copy this URL:', text);
+            });
+        };
+
+        // Add file to UI queue
+        function addFileToQueue(file) {
+            const fileId = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            const fileSize = (file.size / (1024 * 1024)).toFixed(2);
+            
+            const fileList = document.getElementById('fileList');
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.id = fileId;
+            fileItem.innerHTML = `
+                <div class="file-info">
+                    <div class="file-name">${escapeHtml(file.name)}</div>
+                    <div class="file-size">${fileSize} MB</div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                </div>
+                <div class="status uploading">⏳ Starting upload...</div>
+                <div class="file-url" style="display: none;"></div>
+            `;
+            
+            fileList.insertBefore(fileItem, fileList.firstChild);
+            
+            // Start upload
+            activeUploads.set(fileId, { file, status: 'uploading' });
+            
+            // Choose upload method based on file size
+            if (file.size > 10 * 1024 * 1024 && ws && ws.readyState === WebSocket.OPEN) {
+                // Files larger than 10MB use chunked upload
+                uploadFileChunked(file, fileId).catch(error => {
+                    console.error('Chunked upload failed:', error);
+                    updateFileStatus(fileId, 'error', null, error.message);
+                });
+            } else {
+                // Small files use standard HTTP
+                uploadFileHTTP(file, fileId).catch(error => {
+                    console.error('HTTP upload failed:', error);
+                    updateFileStatus(fileId, 'error', null, error.message);
+                });
+            }
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Clear completed uploads
+        function clearCompleted() {
+            const fileItems = document.querySelectorAll('.file-item');
+            fileItems.forEach(item => {
+                const status = item.querySelector('.status');
+                if (status.classList.contains('success') || status.classList.contains('error')) {
+                    item.remove();
+                }
+            });
+        }
+
+        // Handle file selection
+        function handleFiles(files) {
+            const validFiles = Array.from(files).filter(file => {
+                const maxSize = 2 * 1024 * 1024 * 1024; // 2GB
+                if (file.size > maxSize) {
+                    alert(`File ${file.name} is too large (max 2GB)`);
+                    return false;
+                }
+                return true;
+            });
+            
+            validFiles.forEach(file => addFileToQueue(file));
+        }
+
+        // Setup drag and drop
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            handleFiles(files);
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+            fileInput.value = ''; // Reset input
+        });
+        
+        // Initialize
+        initWebSocket();
+        
+        console.log('Confetti-Box uploader ready!');
+        console.log(`API Endpoint: ${API_BASE_URL}/upload`);
+    </script>
+</body>
+              </html>
