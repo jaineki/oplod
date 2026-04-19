@@ -1,0 +1,2 @@
+port: ${PORT:-8080}  # Uses Railway's PORT, falls back to 8080 locally
+host: "0.0.0.0"       # Critical - not localhost
